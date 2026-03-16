@@ -4,9 +4,17 @@ node_modules/
 # Frontend build output (regenerate with: npm run build in frontend/)
 frontend/dist/
 
+# Embedded frontend assets (compiled build artifacts)
+backend/ui/
+
 # Go binary
 backend/rag-backend.exe
+backend/rag-backend.exe~
 backend/*.exe
+
+# Temp / scratch files
+git_config_check.txt
+*.txt.tmp
 
 # SQLite database (contains user data — do not commit)
 backend/app.db
