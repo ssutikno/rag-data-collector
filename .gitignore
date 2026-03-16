@@ -1,0 +1,37 @@
+# Dependencies
+node_modules/
+
+# Frontend build output (regenerate with: npm run build in frontend/)
+frontend/dist/
+
+# Go binary
+backend/rag-backend.exe
+backend/*.exe
+
+# SQLite database (contains user data — do not commit)
+backend/app.db
+backend/*.db
+backend/*.db-shm
+backend/*.db-wal
+
+# Uploaded files (user content — do not commit)
+uploads/
+backend/uploads/
+
+# Environment / secrets
+.env
+*.env
+backend/.env
+config.local.yaml
+
+# Logs
+*.log
+backend/*.log
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/settings.json
+
+# Go test cache
+backend/tmp/

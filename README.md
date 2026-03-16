@@ -1,0 +1,344 @@
+# RAG Data Collector
+
+A self-hosted document collection and storage platform built with **Go 1.22 + Gin** on the backend and **React 18 + Vite 5** on the frontend. The React SPA is compiled and embedded directly into the single Go binary — no separate web server required.
+
+---
+
+## Table of Contents
+
+1. [Features](#features)
+2. [Architecture](#architecture)
+3. [Prerequisites](#prerequisites)
+4. [Quick Start](#quick-start)
+5. [Environment Variables](#environment-variables)
+6. [Project Structure](#project-structure)
+7. [Default Credentials](#default-credentials)
+8. [API Reference](#api-reference)
+9. [CSV User Import Format](#csv-user-import-format)
+10. [Development Workflow](#development-workflow)
+11. [Tech Stack](#tech-stack)
+
+---
+
+## Features
+
+- **Document upload & management** — Upload files, attach metadata, view/download/delete documents
+- **Role-based access control** — `admin`, `manager`, `contributor`, `viewer` roles
+- **Organisation hierarchy** — Companies → Departments → Sub-Departments (auto-created on import)
+- **User self-service profile** — Edit personal info, org assignment, and password from a single page
+- **Bulk user CSV import** — Import users by name (orgs auto-created if they don't exist)
+- **Admin panel** — Manage users, organisation structure, and all documents
+- **Single binary deployment** — Frontend embedded in the Go binary via `//go:embed`
+- **Seeded default admin** — Ready to log in immediately after first run
+
+---
+
+## Architecture
+
+```
+┌──────────────────────────────────────────────────────┐
+│                  rag-backend binary                  │
+│                                                      │
+│  ┌─────────────────┐     ┌────────────────────────┐  │
+│  │  Gin HTTP Router│     │  Embedded React SPA    │  │
+│  │  /api/*         │     │  (embed.FS → /ui/*)    │  │
+│  └────────┬────────┘     └────────────────────────┘  │
+│           │                                          │
+│  ┌────────▼────────┐                                 │
+│  │  GORM + SQLite  │                                 │
+│  │  (app.db)       │                                 │
+│  └─────────────────┘                                 │
+└──────────────────────────────────────────────────────┘
+         Port :8080  (configurable via .env)
+```
+
+**Auth flow:** Login → JWT HS256 issued as `HttpOnly` cookie (`auth_token`, 8 h expiry) → All protected API calls attach cookie automatically.
+
+---
+
+## Prerequisites
+
+### Build-time (compiling the project)
+
+| Tool | Minimum Version |
+|------|----------------|
+| Go   | 1.22            |
+| Node | 18.x            |
+| npm  | 9.x             |
+
+### Runtime (running the compiled binary)
+
+| Tool | Requirement |
+|------|-------------|
+| Go   | Not required — distribute the compiled binary |
+| Node / npm | **Not required** — the React SPA is embedded inside the binary |
+
+SQLite is bundled via `glebarez/go-sqlite3` (CGO-free) — no system libraries required. The compiled `rag-backend` binary is fully self-contained.
+
+---
+
+## Quick Start
+
+```bash
+# 1. Clone the repository
+git clone <repo-url>
+cd RAG_docs
+
+# 2. Configure backend environment
+cp backend/.env.example backend/.env
+# Edit backend/.env — set JWT_SECRET and adjust paths as needed
+
+# 3. Build the React frontend
+cd frontend
+npm install
+npm run build        # outputs to backend/ui/
+
+# 4. Build and run the backend (embeds the frontend)
+cd ../backend
+go build -o rag-backend .
+./rag-backend        # Windows: rag-backend.exe
+```
+
+The application is now available at **http://localhost:8080**.
+
+> **First run:** The default admin account is seeded automatically on startup (see [Default Credentials](#default-credentials)).
+
+---
+
+## Environment Variables
+
+Create `backend/.env` from `backend/.env.example`:
+
+| Variable | Default / Example | Description |
+|----------|-------------------|-------------|
+| `PORT` | `8080` | HTTP port the server listens on |
+| `JWT_SECRET` | *(required)* | Secret key for signing JWT tokens — use a long random string in production |
+| `JWT_EXPIRY_HOURS` | `8` | JWT token lifetime in hours |
+| `DB_PATH` | `./app.db` | Path to the SQLite database file |
+| `UPLOAD_DIR` | `./uploads` | Directory where uploaded files are stored |
+| `MAX_UPLOAD_MB` | `50` | Maximum upload file size in megabytes |
+| `DEFAULT_ADMIN_EMAIL` | `admin@ragdocs.local` | Email for the seeded default admin account |
+| `DEFAULT_ADMIN_PASSWORD` | `Admin@1234!` | Password for the seeded default admin account |
+| `BCRYPT_COST` | `12` | bcrypt work factor (10–14 recommended) |
+| `GIN_MODE` | `release` | Set to `debug` for verbose Gin logging |
+
+---
+
+## Project Structure
+
+```
+RAG_docs/
+├── backend/
+│   ├── main.go              # Entry point — router, DB init, seeding, embed
+│   ├── go.mod / go.sum
+│   ├── .env.example
+│   ├── app.db               # SQLite database (created at runtime)
+│   ├── uploads/             # Uploaded files (created at runtime)
+│   ├── ui/                  # Compiled React SPA (git-ignored; generated by npm run build)
+│   ├── handlers/
+│   │   ├── auth.go          # Login, logout, register, change-password
+│   │   ├── user.go          # Profile, user CRUD, bulk CSV import
+│   │   ├── document.go      # Upload, list, download, delete documents
+│   │   ├── company.go       # Company CRUD
+│   │   ├── department.go    # Department CRUD
+│   │   └── sub_department.go# Sub-department CRUD
+│   └── models/
+│       ├── user.go
+│       ├── document.go
+│       ├── company.go
+│       ├── department.go
+│       └── sub_department.go
+└── frontend/
+    ├── package.json
+    ├── vite.config.js       # Proxy /api → :8080 for dev mode
+    └── src/
+        ├── App.jsx           # Router + protected/public route split
+        ├── main.jsx
+        ├── api/axios.js      # Axios instance (baseURL '/', withCredentials)
+        ├── components/
+        │   └── Layout/
+        │       ├── Sidebar.jsx
+        │       └── Topbar.jsx
+        └── pages/
+            ├── Login.jsx
+            ├── Register.jsx
+            ├── Dashboard.jsx
+            ├── Documents.jsx
+            ├── Profile.jsx   # Personal info / org assignment / change password
+            └── admin/
+                ├── Users.jsx
+                ├── Companies.jsx
+                ├── Departments.jsx
+                ├── SubDepartments.jsx
+                └── AllDocuments.jsx
+```
+
+---
+
+## Default Credentials
+
+| Field    | Value                |
+|----------|----------------------|
+| Email    | `admin@ragdocs.local` |
+| Password | `Admin@1234!`         |
+| Role     | `admin`               |
+
+Change the password immediately after first login, or override via `DEFAULT_ADMIN_EMAIL` / `DEFAULT_ADMIN_PASSWORD` in `.env` before the first run.
+
+---
+
+## API Reference
+
+All authenticated endpoints require the `auth_token` HttpOnly cookie (set automatically on login).
+
+### Authentication
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `POST` | `/api/auth/login` | Public | Login; sets `auth_token` cookie |
+| `POST` | `/api/auth/logout` | Public | Clears `auth_token` cookie |
+| `POST` | `/api/auth/register` | Public | Self-registration (role defaults to `viewer`) |
+| `PUT` | `/api/auth/change-password` | User | Change own password (`current_password`, `new_password`) |
+
+### Public Organisation Lookup (unauthenticated)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/public/companies` | List all companies |
+| `GET` | `/api/public/departments` | List all departments |
+| `GET` | `/api/public/sub-departments` | List all sub-departments |
+
+### User Profile
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/profile` | User | Get own profile |
+| `PUT` | `/api/profile` | User | Update personal info and/or org assignment |
+
+**`PUT /api/profile` body (personal info):**
+```json
+{ "full_name": "Jane Doe", "job_title": "Analyst", "phone": "+15550001" }
+```
+
+**`PUT /api/profile` body (org assignment):**
+```json
+{ "update_org": true, "company_id": 1, "department_id": 2, "sub_dept_id": 3 }
+```
+Pass `null` for any org field to clear it.
+
+### Documents
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/documents` | User | List own documents |
+| `POST` | `/api/documents` | User | Upload a document (multipart/form-data) |
+| `GET` | `/api/documents/:id` | User | Download a document |
+| `DELETE` | `/api/documents/:id` | User | Delete own document |
+
+### Organisation Structure
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/companies` | User | List companies |
+| `POST` | `/api/companies` | Admin | Create company |
+| `PUT` | `/api/companies/:id` | Admin | Update company |
+| `DELETE` | `/api/companies/:id` | Admin | Delete company |
+| `GET` | `/api/departments` | User | List departments |
+| `POST` | `/api/departments` | Admin | Create department |
+| `PUT` | `/api/departments/:id` | Admin | Update department |
+| `DELETE` | `/api/departments/:id` | Admin | Delete department |
+| `GET` | `/api/sub-departments` | User | List sub-departments |
+| `POST` | `/api/sub-departments` | Admin | Create sub-department |
+| `PUT` | `/api/sub-departments/:id` | Admin | Update sub-department |
+| `DELETE` | `/api/sub-departments/:id` | Admin | Delete sub-department |
+
+### Admin — User Management
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/admin/users` | Admin | List all users |
+| `POST` | `/api/admin/users` | Admin | Create a single user |
+| `PUT` | `/api/admin/users/:id` | Admin | Update a user |
+| `DELETE` | `/api/admin/users/:id` | Admin | Delete a user |
+| `POST` | `/api/admin/users/import` | Admin | Bulk import users from CSV |
+
+### Admin — All Documents
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/admin/documents` | Admin | List all documents across all users |
+| `DELETE` | `/api/admin/documents/:id` | Admin | Delete any document |
+
+---
+
+## CSV User Import Format
+
+Download the template from the **Admin → Users** page. Columns:
+
+| Column | Required | Notes |
+|--------|----------|-------|
+| `full_name` | Yes | Display name |
+| `email` | Yes | Must be unique |
+| `password` | Yes | Min 8 chars |
+| `role` | Yes | `admin` / `manager` / `contributor` / `viewer` |
+| `job_title` | No | |
+| `phone` | No | |
+| `company` | No | Company **name** — created automatically if not found |
+| `department` | No | Department **name** — created automatically if not found |
+| `sub_department` | No | Sub-department **name** — created automatically if not found |
+
+**Example row:**
+```
+Jane Smith,jane@company.com,TempPass123!,contributor,Data Analyst,+15550001,Acme Corp,Engineering,Backend
+```
+
+> Org fields use **names, not IDs**. If a company/department/sub-department doesn't exist, it is created automatically. If a name is left blank, the user is imported with no org assignment for that level.
+
+---
+
+## Development Workflow
+
+### Frontend hot-reload (with backend proxy)
+
+```bash
+# Terminal 1 — run the backend
+cd backend
+go run .
+
+# Terminal 2 — run Vite dev server (proxies /api to :8080)
+cd frontend
+npm run dev
+# App available at http://localhost:5173
+```
+
+### Build for production
+
+```bash
+cd frontend && npm run build   # compiles to backend/ui/
+cd ../backend && go build -o rag-backend .
+./rag-backend
+```
+
+The single `rag-backend` binary includes the compiled frontend. No separate deployment needed.
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Backend language | Go 1.22 |
+| HTTP framework | Gin |
+| ORM | GORM |
+| Database | SQLite (`glebarez/go-sqlite3`, CGO-free) |
+| Auth | JWT HS256 (`golang-jwt/jwt/v5`), HttpOnly cookie |
+| Password hashing | bcrypt cost 12 (`golang.org/x/crypto`) |
+| Frontend framework | React 18 |
+| Build tool | Vite 5 |
+| UI components | Bootstrap 5 + react-bootstrap + Bootstrap Icons |
+| HTTP client | Axios |
+| Frontend bundled into binary | `//go:embed all:ui` |
+
+---
+
+*For full product requirements, see [PRD_Unstructured_Data_Collector.md](PRD_Unstructured_Data_Collector.md).*

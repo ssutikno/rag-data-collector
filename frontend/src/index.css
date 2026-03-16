@@ -1,0 +1,207 @@
+/* ─────────────────────────────────────────
+   Global & layout
+───────────────────────────────────────── */
+:root {
+  --sidebar-width: 250px;
+  --sidebar-bg: #1e2a3a;
+  --sidebar-hover: #2d3f55;
+  --sidebar-active: #3b82f6;
+  --topbar-height: 56px;
+}
+
+body {
+  background-color: #f4f6fb;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+/* ─── Sidebar ──────────────────────────── */
+.sidebar {
+  width: var(--sidebar-width);
+  min-height: 100vh;
+  background: var(--sidebar-bg);
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.25s ease;
+}
+
+.sidebar-brand {
+  height: var(--topbar-height);
+  display: flex;
+  align-items: center;
+  padding: 0 1.25rem;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.sidebar-brand span {
+  color: #fff;
+  font-weight: 700;
+  font-size: 1.1rem;
+  letter-spacing: 0.01em;
+}
+
+.sidebar-brand .brand-icon {
+  color: var(--sidebar-active);
+  font-size: 1.4rem;
+  margin-right: 0.6rem;
+}
+
+.sidebar-nav {
+  flex: 1;
+  padding: 1rem 0;
+  overflow-y: auto;
+}
+
+.nav-section-title {
+  color: rgba(255,255,255,0.35);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0.75rem 1.25rem 0.25rem;
+}
+
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  padding: 0.55rem 1.25rem;
+  color: rgba(255,255,255,0.7);
+  text-decoration: none;
+  border-radius: 0;
+  transition: background 0.15s, color 0.15s;
+  font-size: 0.9rem;
+}
+
+.sidebar-link i {
+  width: 1.4rem;
+  font-size: 1rem;
+  margin-right: 0.6rem;
+  flex-shrink: 0;
+}
+
+.sidebar-link:hover {
+  background: var(--sidebar-hover);
+  color: #fff;
+}
+
+.sidebar-link.active {
+  background: var(--sidebar-active);
+  color: #fff;
+}
+
+/* ─── Main wrapper ─────────────────────── */
+.main-wrapper {
+  margin-left: var(--sidebar-width);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ─── Topbar ───────────────────────────── */
+.topbar {
+  height: var(--topbar-height);
+  background: #fff;
+  border-bottom: 1px solid #e5e7eb;
+  position: sticky;
+  top: 0;
+  z-index: 900;
+  display: flex;
+  align-items: center;
+  padding: 0 1.5rem;
+  gap: 1rem;
+}
+
+.topbar-title {
+  flex: 1;
+  font-weight: 600;
+  font-size: 1rem;
+  color: #374151;
+}
+
+/* ─── Page content ─────────────────────── */
+.page-content {
+  flex: 1;
+  padding: 1.75rem;
+}
+
+/* ─── Auth pages ───────────────────────── */
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #1e2a3a 0%, #2d4a6e 100%);
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 420px;
+  border: none;
+  border-radius: 0.75rem;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+
+.auth-logo {
+  font-size: 2rem;
+  color: var(--sidebar-active);
+}
+
+/* ─── Stat cards ───────────────────────── */
+.stat-card {
+  border: none;
+  border-radius: 0.75rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  transition: transform 0.15s;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+}
+
+.stat-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 0.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+}
+
+/* ─── Document list ────────────────────── */
+.doc-row {
+  transition: background 0.1s;
+}
+.doc-row:hover {
+  background: #f8faff;
+}
+
+/* ─── Upload drop zone ─────────────────── */
+.drop-zone {
+  border: 2px dashed #93c5fd;
+  border-radius: 0.75rem;
+  background: #eff6ff;
+  transition: border-color 0.2s, background 0.2s;
+  cursor: pointer;
+}
+
+.drop-zone.drag-over {
+  border-color: #3b82f6;
+  background: #dbeafe;
+}
+
+/* ─── Badge helpers ────────────────────── */
+.badge-role-system_admin  { background: #7c3aed !important; }
+.badge-role-dept_admin    { background: #0369a1 !important; }
+.badge-role-contributor   { background: #0891b2 !important; }
+.badge-role-viewer        { background: #64748b !important; }
+
+/* ─── Responsive collapse for small screens */
+@media (max-width: 767px) {
+  .sidebar { transform: translateX(-100%); }
+  .sidebar.open { transform: translateX(0); }
+  .main-wrapper { margin-left: 0; }
+}
