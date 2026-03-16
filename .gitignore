@@ -12,6 +12,9 @@ backend/rag-backend.exe
 backend/rag-backend.exe~
 backend/*.exe
 
+# Distribution build output
+dist/
+
 # Temp / scratch files
 git_config_check.txt
 *.txt.tmp
