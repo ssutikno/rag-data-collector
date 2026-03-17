@@ -12,8 +12,12 @@ backend/rag-backend.exe
 backend/rag-backend.exe~
 backend/*.exe
 
-# Distribution build output
-#dist/
+# Distribution build output — binaries are committed, but runtime-generated files are not
+dist/**/*.db
+dist/**/*.db-shm
+dist/**/*.db-wal
+dist/**/.env
+dist/**/uploads/
 
 # Temp / scratch files
 git_config_check.txt
