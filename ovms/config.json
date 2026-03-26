@@ -1,0 +1,17 @@
+{
+    "model_config_list": [
+        {
+            "config": {
+                "name": "bge-small-en",
+                "base_path": "/models/bge-small-en",
+                "target_device": "CPU",
+                "plugin_config": {
+                    "NUM_STREAMS": "4"
+                },
+                "nireq": 8
+            }
+        }
+    ],
+    "mediapipe_config_list": [],
+    "custom_node_library_config_list": []
+}

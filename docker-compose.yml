@@ -1,0 +1,109 @@
+# RAG Docs — AI Stack
+#
+# Services:
+#   chromadb   Vector store (REST :8000)  — shared between Go backend and OpenWebUI
+#   openwebui  Chat UI with RAG           (HTTP :3001)
+#
+# NOTE: OVMS is not included here (not yet compatible with this system).
+#       To add OVMS later, see ovms/config.json and ovms/models/README.md.
+#
+# The Go backend (RAG Docs) runs on the host at port 8080.
+# From inside containers, reach it via: http://host.docker.internal:8080
+#
+# Usage:
+#   cp .env.example .env   # edit secrets
+#   docker compose up -d
+#   docker compose logs -f
+
+services:
+
+  # ─── ChromaDB Vector Store ──────────────────────────────────────────────────
+  chromadb:
+    image: ghcr.io/chroma-core/chroma:latest
+    container_name: chromadb
+    restart: unless-stopped
+    ports:
+      - "${CHROMA_PORT:-8000}:8000"
+    volumes:
+      - chromadb-data:/chroma/chroma
+    environment:
+      IS_PERSISTENT: "TRUE"
+      PERSIST_DIRECTORY: /chroma/chroma
+      ANONYMIZED_TELEMETRY: "FALSE"
+      # Optional: enable basic auth (uncomment and set CHROMA_SERVER_AUTHN_CREDENTIALS)
+      # CHROMA_SERVER_AUTHN_PROVIDER: chromadb.auth.basic_authn.BasicAuthenticationServerProvider
+      # CHROMA_SERVER_AUTHN_CREDENTIALS: ${CHROMA_BASIC_AUTH:-admin:changeme}
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/8000'"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - rag-net
+
+  # ─── OpenWebUI ──────────────────────────────────────────────────────────────
+  openwebui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: openwebui-rag
+    restart: unless-stopped
+    ports:
+      - "${OPENWEBUI_PORT:-3001}:8080"
+    volumes:
+      - openwebui-data:/app/backend/data
+    environment:
+      WEBUI_SECRET_KEY: ${OPENWEBUI_SECRET_KEY:-change-me-in-production}
+
+      # ── LLM backend ──
+      # No LLM backend configured by default (OVMS removed).
+      # To connect an external LLM, set OPENAI_API_BASE_URL + OPENAI_API_KEY,
+      # or set OLLAMA_BASE_URL to point at a local Ollama instance.
+      OPENAI_API_BASE_URL: ${OPENAI_API_BASE_URL:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ENABLE_OPENAI_API: ${ENABLE_OPENAI_API:-false}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-}
+      ENABLE_OLLAMA_API: ${ENABLE_OLLAMA_API:-false}
+
+      # ── Vector store: external ChromaDB ──
+      VECTOR_DB: chroma
+      CHROMA_HTTP_HOST: chromadb
+      CHROMA_HTTP_PORT: "8000"
+      CHROMA_HTTP_SSL: "false"
+      CHROMA_TENANT: ${CHROMA_TENANT:-default_tenant}
+      CHROMA_DATABASE: ${CHROMA_DATABASE:-default_database}
+
+      # ── RAG embedding ──
+      # OpenWebUI uses its own sentence-transformers for its RAG pipeline.
+      # The OVMS embedding endpoint is used separately by the Go backend.
+      RAG_EMBEDDING_ENGINE: ""
+      RAG_EMBEDDING_MODEL: sentence-transformers/all-MiniLM-L6-v2
+      SENTENCE_TRANSFORMERS_HOME: /app/backend/data/cache/embedding/models
+
+      # ── Misc ──
+      PORT: "8080"
+      SCARF_NO_ANALYTICS: "true"
+      DO_NOT_TRACK: "true"
+      ANONYMIZED_TELEMETRY: "false"
+      WEBUI_NAME: ${WEBUI_NAME:-RAG Docs}
+
+    extra_hosts:
+      # Allows containers to reach the Go backend running on the host at :8080
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      chromadb:
+        condition: service_healthy
+    networks:
+      - rag-net
+
+# ─── Volumes ────────────────────────────────────────────────────────────────
+volumes:
+  openwebui-data:
+    name: ragdocs_openwebui_data
+  chromadb-data:
+    name: ragdocs_chromadb_data
+
+# ─── Networks ───────────────────────────────────────────────────────────────
+networks:
+  rag-net:
+    name: ragdocs_rag_net
+    driver: bridge
